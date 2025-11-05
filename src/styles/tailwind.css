@@ -1,0 +1,13 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-uber-black: #000000;
+  --color-uber-green: #06c167;
+  --color-uber-dark-green: #05a858;
+  --color-uber-light-green: #d4f3e5;
+  --color-uber-gray: #545454;
+  --color-uber-light-gray: #f6f6f6;
+  --color-uber-border: #e8e8e8;
+  --color-uber-text-dark: #191919;
+  --color-uber-text-gray: #6b6b6b;
+}
