@@ -1,148 +1,148 @@
 name: CI - Continuous Integration
 
 on:
-    push:
-        branches:
-            - main
-            - develop
-    pull_request:
-        branches:
-            - main
-            - develop
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 env:
-    NODE_VERSION: "18"
-    NODE_ENV: test
+  NODE_VERSION: "22"
+  NODE_ENV: test
 
 jobs:
-    lint:
-        name: Lint Code Quality
-        runs-on: ubuntu-latest
+  lint:
+    name: Lint Code Quality
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
-                  cache: "npm"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-            - name: Install dependencies
-              run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-            - name: Run ESLint
-              run: npm run lint
+      - name: Run ESLint
+        run: npm run lint
 
-    security-audit:
-        name: Security Audit
-        runs-on: ubuntu-latest
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
         continue-on-error: true
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+      - name: Generate audit report
+        if: always()
+        run: |
+          npm audit --json > audit-report.json || true
+          echo "Audit completed - check artifacts for details"
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
-                  cache: "npm"
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-report
+          path: audit-report.json
+          retention-days: 30
 
-            - name: Run npm audit
-              run: npm audit --audit-level=high
-              continue-on-error: true
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    needs: lint
 
-            - name: Generate audit report
-              if: always()
-              run: |
-                  npm audit --json > audit-report.json || true
-                  echo "Audit completed - check artifacts for details"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Upload audit report
-              if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                  name: security-audit-report
-                  path: audit-report.json
-                  retention-days: 30
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-    test-frontend:
-        name: Test Frontend
-        runs-on: ubuntu-latest
-        needs: lint
+      - name: Install dependencies
+        run: npm ci
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+      - name: Run type check
+        run: npm run type-check
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
-                  cache: "npm"
+      - name: Generate test coverage report
+        run: |
+          echo "Frontend tests completed successfully" > frontend-test-report.txt
+          echo "Coverage: 85%" >> frontend-test-report.txt
 
-            - name: Install dependencies
-              run: npm ci
+      - name: Upload test coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-coverage
+          path: frontend-test-report.txt
+          retention-days: 30
 
-            - name: Run type check
-              run: npm run type-check
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [lint, test-frontend]
 
-            - name: Generate test coverage report
-              run: |
-                  echo "Frontend tests completed successfully" > frontend-test-report.txt
-                  echo "Coverage: 85%" >> frontend-test-report.txt
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Upload test coverage
-              if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                  name: frontend-test-coverage
-                  path: frontend-test-report.txt
-                  retention-days: 30
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-    build:
-        name: Build Application
-        runs-on: ubuntu-latest
-        needs: [lint, test-frontend]
+      - name: Install dependencies
+        run: npm ci
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+      - name: Build frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
-                  cache: "npm"
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 30
 
-            - name: Install dependencies
-              run: npm ci
+  notify-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [lint, security-audit, test-frontend, build]
+    if: failure()
 
-            - name: Build frontend
-              run: npm run build
-              env:
-                  NODE_ENV: production
-
-            - name: Upload build artifacts
-              uses: actions/upload-artifact@v4
-              with:
-                  name: build-artifacts
-                  path: dist/
-                  retention-days: 30
-
-    notify-failure:
-        name: Notify on Failure
-        runs-on: ubuntu-latest
-        needs: [lint, security-audit, test-frontend, build]
-        if: failure()
-
-        steps:
-            - name: Notification
-              run: |
-                  echo "::error::❌ CI Pipeline Failed!"
-                  echo "::error::Branch: ${{ github.ref_name }}"
-                  echo "::error::Commit: ${{ github.sha }}"
-                  echo "::error::Author: ${{ github.actor }}"
-                  echo "::error::Failed Job: Check the logs above for details"
+    steps:
+      - name: Notification
+        run: |
+          echo "::error::❌ CI Pipeline Failed!"
+          echo "::error::Branch: ${{ github.ref_name }}"
+          echo "::error::Commit: ${{ github.sha }}"
+          echo "::error::Author: ${{ github.actor }}"
+          echo "::error::Failed Job: Check the logs above for details"
