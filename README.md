@@ -1,5 +1,7 @@
 # UberEats Frontend
 
+[![CI Status](https://github.com/CezGain/fake-uber-eats-app/actions/workflows/ci.yml/badge.svg)](https://github.com/CezGain/fake-uber-eats-app/actions/workflows/ci.yml)
+
 Application Vue.js 3 + Vuetify dockerisée.
 
 ## Commandes
