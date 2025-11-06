@@ -30,8 +30,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install dev dependencies
-        run: npm ci
+      - name: Install all dependencies (including dev)
+        run: npm ci --include=dev
+
+      - name: Verify run-p is available
+        run: npx run-p --version
 
       - name: Build application
         run: npm run build

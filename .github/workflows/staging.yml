@@ -25,8 +25,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install dev dependencies
-        run: npm ci
+      - name: Install all dependencies (including dev)
+        run: npm ci --include=dev
 
       - name: Run lint
         run: npm run lint
