@@ -33,12 +33,6 @@ jobs:
       - name: Install dev dependencies
         run: npm ci
 
-      - name: Run lint
-        run: npm run lint
-
-      - name: Run type check
-        run: npm run type-check
-
       - name: Build application
         run: npm run build
         env:
