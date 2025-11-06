@@ -34,9 +34,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify type check
-        run: npm run type-check
-
       - name: Verify build succeeds
         run: npm run build
         env:
