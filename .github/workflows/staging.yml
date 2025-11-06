@@ -11,10 +11,9 @@ env:
   NODE_ENV: staging
 
 jobs:
-  pre-deployment-validation:
-    name: Staging Pre-deployment Validation
+  build-for-staging:
+    name: Build for Staging
     runs-on: ubuntu-latest
-    environment: staging
 
     steps:
       - name: Checkout code
@@ -26,41 +25,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install dependencies
+      - name: Install dev dependencies
         run: npm ci
 
-      - name: Verify lint passed
+      - name: Run lint
         run: npm run lint
 
-      - name: Verify type check
+      - name: Run type check
         run: npm run type-check
-
-      - name: Verify build succeeds
-        run: npm run build
-        env:
-          NODE_ENV: staging
-
-      - name: Validation complete
-        run: echo "✅ All staging pre-deployment checks passed"
-
-  deploy-staging:
-    name: Deploy to Staging Environment
-    runs-on: ubuntu-latest
-    needs: pre-deployment-validation
-    environment: staging
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Build application
         run: npm run build
@@ -68,10 +40,52 @@ jobs:
           NODE_ENV: staging
           VITE_API_URL: ${{ secrets.STAGING_API_URL }}
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-build
+          path: dist/
+          retention-days: 1
+
+      - name: Upload package files
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-package
+          path: |
+            package.json
+            package-lock.json
+          retention-days: 1
+
+  deploy-staging:
+    name: Deploy to Staging Environment
+    runs-on: ubuntu-latest
+    needs: build-for-staging
+    environment: staging
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: staging-build
+          path: dist/
+
+      - name: Download package files
+        uses: actions/download-artifact@v4
+        with:
+          name: staging-package
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install production dependencies only
+        run: npm ci --omit=dev
+
       - name: Prepare deployment package
         run: |
           echo "Creating staging deployment package..."
-          tar -czf staging-deployment.tar.gz dist/ package.json package-lock.json
+          tar -czf staging-deployment.tar.gz dist/ package.json package-lock.json node_modules/
 
       - name: Deploy notification
         run: |
@@ -130,7 +144,7 @@ jobs:
   notify-failure:
     name: Notify Staging Failure
     runs-on: ubuntu-latest
-    needs: [pre-deployment-validation, deploy-staging, health-check-staging]
+    needs: [build-for-staging, deploy-staging, health-check-staging]
     if: failure()
 
     steps:

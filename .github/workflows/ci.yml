@@ -117,7 +117,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - name: Install dependencies
+      - name: Install dev dependencies
         run: npm ci
 
       - name: Build frontend
@@ -130,7 +130,16 @@ jobs:
         with:
           name: build-artifacts
           path: dist/
-          retention-days: 30
+          retention-days: 7
+
+      - name: Upload package files for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-files
+          path: |
+            package.json
+            package-lock.json
+          retention-days: 7
 
   notify-failure:
     name: Notify on Failure
